@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const PARSE_PROMPT = `You are a receipt/invoice data extraction assistant. Extract structured data from this receipt/invoice image and return ONLY valid JSON with no markdown, no code fences, no explanation.
+const PARSE_PROMPT = `You are a receipt/invoice data extraction assistant. Extract structured data from this receipt/invoice and return ONLY valid JSON with no markdown, no code fences, no explanation.
 
 Return this exact JSON structure:
 {
@@ -29,9 +29,12 @@ Rules:
 - All monetary values must be plain numbers with no currency symbols or commas
 - If you cannot determine a value with confidence, use null
 - For lineItems: if the receipt shows only a total with no itemization, return one line item with the vendor/product name as description
-- Date must be YYYY-MM-DD strictly; parse date formats like "15 Jan 2025", "01/15/25", etc.
-- Currency default is TZS for Tanzania receipts; detect from currency symbols (Tsh, $, £, €, KSh, UGX)
+- Date must be YYYY-MM-DD strictly; parse formats like "15 Jan 2025", "01/15/25", etc.
+- Currency default is TZS for Tanzania receipts; detect from symbols (Tsh, $, £, €, KSh, UGX)
 - taxRate should be a percentage value (e.g. 18 for 18% VAT), not a decimal`;
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+type ImageMime = (typeof IMAGE_TYPES)[number];
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -44,44 +47,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured', fallback: true }, { status: 503 });
   }
 
-  let body: { imageBase64: string; mimeType: string; textContent?: string };
+  let body: { fileBase64: string; mimeType: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { imageBase64, mimeType, textContent } = body;
-
-  if (!imageBase64 || !mimeType) {
-    return NextResponse.json({ error: 'Missing imageBase64 or mimeType' }, { status: 400 });
+  const { fileBase64, mimeType } = body;
+  if (!fileBase64 || !mimeType) {
+    return NextResponse.json({ error: 'Missing fileBase64 or mimeType' }, { status: 400 });
   }
 
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
-  type AllowedMime = (typeof allowedTypes)[number];
-  if (!allowedTypes.includes(mimeType as AllowedMime)) {
-    return NextResponse.json({ error: `Unsupported image type: ${mimeType}` }, { status: 400 });
+  const isImage = IMAGE_TYPES.includes(mimeType as ImageMime);
+  const isPdf = mimeType === 'application/pdf';
+
+  if (!isImage && !isPdf) {
+    return NextResponse.json({ error: `Unsupported file type: ${mimeType}` }, { status: 400 });
   }
 
-  const userContent: Anthropic.MessageParam['content'] = [
-    {
-      type: 'image',
-      source: {
-        type: 'base64',
-        media_type: mimeType as AllowedMime,
-        data: imageBase64,
-      },
-    },
-  ];
-
-  if (textContent && textContent.length > 50) {
-    userContent.push({
-      type: 'text',
-      text: `Additional text extracted from document (use to improve accuracy):\n${textContent.slice(0, 2000)}`,
-    });
-  }
-
-  userContent.push({ type: 'text', text: PARSE_PROMPT });
+  // Images use 'image' block; PDFs use 'document' block (Claude natively reads PDFs)
+  const fileContent: Anthropic.MessageParam['content'][number] = isImage
+    ? {
+        type: 'image',
+        source: { type: 'base64', media_type: mimeType as ImageMime, data: fileBase64 },
+      }
+    : {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 },
+      };
 
   try {
     const client = new Anthropic({ apiKey });
@@ -90,7 +84,12 @@ export async function POST(req: NextRequest) {
     const message = await client.messages.create({
       model,
       max_tokens: 1024,
-      messages: [{ role: 'user', content: userContent }],
+      messages: [
+        {
+          role: 'user',
+          content: [fileContent, { type: 'text', text: PARSE_PROMPT }],
+        },
+      ],
     });
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '';

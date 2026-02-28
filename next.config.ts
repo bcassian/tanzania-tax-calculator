@@ -1,8 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  turbopack: {},
-  serverExternalPackages: ['pdfjs-dist', 'tesseract.js', 'canvas'],
   async headers() {
     return [
       {

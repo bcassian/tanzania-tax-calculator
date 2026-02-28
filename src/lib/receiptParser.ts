@@ -1,8 +1,8 @@
 import { nanoid } from 'nanoid';
 import type { Bill, LineItem, ParsedReceiptData } from '@/types/bill';
-import { pdfToImages, fileToDataUrl, dataUrlToBase64, dataUrlMimeType } from '@/lib/pdfUtils';
+import { fileToBase64, fileToDataUrl } from '@/lib/pdfUtils';
 
-// ─── Factory functions ───────────────────────────────────────────────────────
+// ─── Factory functions ────────────────────────────────────────────────────────
 
 export function createEmptyBill(overrides: Partial<Bill> = {}): Bill {
   return {
@@ -83,46 +83,7 @@ function mapParsedDataToBill(
   };
 }
 
-// ─── Claude Vision path ───────────────────────────────────────────────────────
-
-async function parseWithClaude(
-  imageBase64: string,
-  mimeType: string,
-  textContent?: string
-): Promise<ParsedReceiptData> {
-  const res = await fetch('/api/parse-receipt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageBase64, mimeType, textContent }),
-  });
-
-  if (res.status === 503) {
-    throw new Error('NO_API_KEY');
-  }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error ?? `HTTP ${res.status}`);
-  }
-
-  const { data } = await res.json();
-  return data as ParsedReceiptData;
-}
-
-// ─── Tesseract fallback ───────────────────────────────────────────────────────
-
-async function parseWithTesseract(imageDataUrl: string): Promise<string> {
-  const { createWorker } = await import('tesseract.js');
-  const worker = await createWorker('eng');
-  try {
-    const { data } = await worker.recognize(imageDataUrl);
-    return data.text;
-  } finally {
-    await worker.terminate();
-  }
-}
-
-// ─── Main orchestrator ────────────────────────────────────────────────────────
+// ─── Main parsing function ────────────────────────────────────────────────────
 
 export interface ParseProgress {
   stage: 'reading' | 'parsing' | 'done' | 'error';
@@ -137,50 +98,36 @@ export async function parseFile(
 
   onProgress({ stage: 'reading', message: 'Reading file…' });
 
-  let imageDataUrl: string;
-  let mimeType: string;
-  let textContent: string | undefined;
-  let previewDataUrl: string | null = null;
+  // For images: generate a preview to display in the UI
+  // For PDFs: Claude reads them natively — no client-side rendering needed
+  const previewDataUrl = isPdf ? null : await fileToDataUrl(file);
+  const fileBase64 = await fileToBase64(file);
 
-  if (isPdf) {
-    const pages = await pdfToImages(file, 1); // first page only for receipts
-    if (pages.length === 0) throw new Error('Could not extract any pages from PDF.');
-    imageDataUrl = pages[0].dataUrl;
-    mimeType = 'image/jpeg';
-    textContent = pages[0].textContent || undefined;
-    previewDataUrl = imageDataUrl;
-  } else {
-    imageDataUrl = await fileToDataUrl(file);
-    mimeType = dataUrlMimeType(imageDataUrl);
-    previewDataUrl = imageDataUrl;
+  onProgress({ stage: 'parsing', message: 'Extracting data with AI…' });
+
+  const res = await fetch('/api/parse-receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileBase64, mimeType: file.type }),
+  });
+
+  if (res.status === 503) {
+    // No API key configured
+    onProgress({ stage: 'done', message: 'No API key' });
+    return createEmptyBill({
+      status: 'error',
+      errorMessage: 'No ANTHROPIC_API_KEY configured. Add it to your Vercel environment variables.',
+      sourceFile: file.name,
+      imagePreview: previewDataUrl,
+    });
   }
 
-  const imageBase64 = dataUrlToBase64(imageDataUrl);
-
-  onProgress({ stage: 'parsing', message: 'Extracting data…' });
-
-  try {
-    const parsed = await parseWithClaude(imageBase64, mimeType, textContent);
-    onProgress({ stage: 'done', message: 'Done' });
-    return mapParsedDataToBill(parsed, { name: file.name, preview: previewDataUrl });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-
-    if (message === 'NO_API_KEY') {
-      // Fall back to Tesseract — returns raw text, user fills fields manually
-      onProgress({ stage: 'parsing', message: 'Using open-source OCR…' });
-      const rawText = await parseWithTesseract(imageDataUrl);
-      onProgress({ stage: 'done', message: 'Done (OCR mode)' });
-
-      return createEmptyBill({
-        status: 'parsed',
-        sourceFile: file.name,
-        imagePreview: previewDataUrl,
-        notes: rawText.trim() || 'No text could be extracted.',
-        // Leave vendor/date/etc blank for manual entry
-      });
-    }
-
-    throw err;
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `HTTP ${res.status}`);
   }
+
+  const { data } = await res.json();
+  onProgress({ stage: 'done', message: 'Done' });
+  return mapParsedDataToBill(data as ParsedReceiptData, { name: file.name, preview: previewDataUrl });
 }
