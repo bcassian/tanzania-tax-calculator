@@ -20,14 +20,14 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#006233',
+  themeColor: '#F28500',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="bg-[#f0f4f0] min-h-screen">
+        <body className="bg-[#fdf6ee] min-h-screen">
           <Header />
           {children}
           <footer className="text-center py-4 px-4 text-xs text-gray-400 leading-relaxed">
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               href="https://www.tra.go.tz/index.php/tax-tables"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#006233] underline-offset-2 hover:underline"
+              className="text-[#F28500] underline-offset-2 hover:underline"
             >
               tra.go.tz
             </a>

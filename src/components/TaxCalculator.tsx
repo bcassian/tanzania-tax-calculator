@@ -136,7 +136,7 @@ export default function TaxCalculator() {
         <div className="flex items-center justify-between py-3 px-3 bg-gray-50 rounded-lg">
           <div>
             <span className="text-sm font-medium text-gray-700">Include SDL (3.5%)</span>
-            <p className="text-xs text-gray-400 mt-0.5">Skills Development Levy — applies when employer has ≥4 employees</p>
+            <p className="text-xs text-gray-400 mt-0.5">Skills Development Levy — applies when employer has ≥10 employees</p>
           </div>
           <button
             onClick={() => setSdlEnabled(!sdlEnabled)}
