@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tanzania Employment Tax Calculator</title>
+<style>
+  :root {
+    --blue: #006233;
+    --gold: #FCD116;
+    --black: #1a1a2e;
+    --white: #ffffff;
+    --light: #f0f4f0;
+    --gray: #6b7280;
+    --border: #d1d5db;
+    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--light);
+    color: var(--black);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--blue);
+    color: var(--white);
+    text-align: center;
+    padding: 1.5rem 1rem;
+    border-bottom: 4px solid var(--gold);
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  header p {
+    font-size: 0.85rem;
+    opacity: 0.85;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+  }
+
+  .card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.35rem;
+    color: var(--gray);
+  }
+
+  input[type="number"], select {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+    background: var(--white);
+  }
+
+  input[type="number"]:focus, select:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(0,98,51,0.1);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .toggle-group {
+    display: flex;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .toggle-group button {
+    flex: 1;
+    padding: 0.6rem;
+    border: none;
+    background: var(--white);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--gray);
+  }
+
+  .toggle-group button.active {
+    background: var(--blue);
+    color: var(--white);
+  }
+
+  .result-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .result-table tr {
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .result-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .result-table td {
+    padding: 0.6rem 0;
+    font-size: 0.9rem;
+  }
+
+  .result-table td:first-child {
+    color: var(--gray);
+  }
+
+  .result-table td:last-child {
+    text-align: right;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .result-table tr.subtotal {
+    border-top: 2px solid var(--border);
+  }
+
+  .result-table tr.subtotal td {
+    padding-top: 0.75rem;
+    font-weight: 600;
+    color: var(--black);
+  }
+
+  .result-table tr.highlight td {
+    color: var(--blue);
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .result-table tr.employer-cost td {
+    color: #b45309;
+    font-weight: 600;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--blue);
+    padding: 0.75rem 0 0.25rem;
+  }
+
+  .section-label.employer {
+    color: #b45309;
+  }
+
+  .bracket-info {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: #f8faf8;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: var(--gray);
+    line-height: 1.5;
+  }
+
+  .bracket-info strong {
+    color: var(--black);
+  }
+
+  footer {
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.75rem;
+    color: var(--gray);
+    line-height: 1.6;
+  }
+
+  footer a {
+    color: var(--blue);
+    text-decoration: none;
+  }
+
+  @media (max-width: 500px) {
+    .row { grid-template-columns: 1fr; }
+    .container { padding: 1rem 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tanzania Employment Tax Calculator</h1>
+  <p>PAYE, NSSF, SDL &amp; WCF &mdash; 2025/2026</p>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Enter Salary Details</h2>
+
+    <div class="form-group">
+      <label>Gross Monthly Salary (TZS)</label>
+      <input type="number" id="grossSalary" placeholder="e.g. 1,500,000" min="0" step="1000">
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>Residency Status</label>
+        <div class="toggle-group">
+          <button class="active" onclick="setResidency('resident', this)">Resident</button>
+          <button onclick="setResidency('non-resident', this)">Non-Resident</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Sector</label>
+        <div class="toggle-group">
+          <button class="active" onclick="setSector('private', this)">Private</button>
+          <button onclick="setSector('public', this)">Public</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>NSSF Split</label>
+        <select id="nssfSplit" onchange="calculate()">
+          <option value="10-10">10% Employee / 10% Employer</option>
+          <option value="5-15">5% Employee / 15% Employer</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>View Period</label>
+        <select id="period" onchange="calculate()">
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none;">
+    <h2>Tax Breakdown</h2>
+    <table class="result-table" id="resultsTable"></table>
+    <div class="bracket-info" id="bracketInfo"></div>
+  </div>
+
+  <div class="card">
+    <h2>PAYE Tax Brackets (Monthly, Resident)</h2>
+    <table class="result-table">
+      <tr><td>Up to TZS 270,000</td><td>0%</td></tr>
+      <tr><td>270,001 &ndash; 520,000</td><td>9%</td></tr>
+      <tr><td>520,001 &ndash; 760,000</td><td>20%</td></tr>
+      <tr><td>760,001 &ndash; 1,000,000</td><td>25%</td></tr>
+      <tr><td>Above 1,000,000</td><td>30%</td></tr>
+    </table>
+  </div>
+</div>
+
+<footer>
+  Based on TRA rates for 2025/2026. For official rates visit
+  <a href="https://www.tra.go.tz/index.php/tax-tables" target="_blank">tra.go.tz</a>.<br>
+  This calculator is for informational purposes only and does not constitute tax advice.
+</footer>
+
+<script>
+let residency = 'resident';
+let sector = 'private';
+
+function setResidency(value, btn) {
+  residency = value;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  calculate();
+}
+
+function setSector(value, btn) {
+  sector = value;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  calculate();
+}
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('en-TZ');
+}
+
+function calculatePAYE(taxableMonthly) {
+  if (residency === 'non-resident') {
+    return { paye: taxableMonthly * 0.15, bracket: 'Flat 15% (non-resident)' };
+  }
+
+  let paye = 0;
+  let bracket = '';
+
+  if (taxableMonthly <= 270000) {
+    paye = 0;
+    bracket = '0% bracket (up to TZS 270,000)';
+  } else if (taxableMonthly <= 520000) {
+    paye = (taxableMonthly - 270000) * 0.09;
+    bracket = '9% bracket (TZS 270,001 \u2013 520,000)';
+  } else if (taxableMonthly <= 760000) {
+    paye = 22500 + (taxableMonthly - 520000) * 0.20;
+    bracket = '20% bracket (TZS 520,001 \u2013 760,000)';
+  } else if (taxableMonthly <= 1000000) {
+    paye = 70500 + (taxableMonthly - 760000) * 0.25;
+    bracket = '25% bracket (TZS 760,001 \u2013 1,000,000)';
+  } else {
+    paye = 130500 + (taxableMonthly - 1000000) * 0.30;
+    bracket = '30% bracket (above TZS 1,000,000)';
+  }
+
+  return { paye, bracket };
+}
+
+function calculate() {
+  const gross = parseFloat(document.getElementById('grossSalary').value);
+  if (!gross || gross <= 0) {
+    document.getElementById('resultsCard').style.display = 'none';
+    return;
+  }
+
+  const split = document.getElementById('nssfSplit').value;
+  const period = document.getElementById('period').value;
+  const multiplier = period === 'annual' ? 12 : 1;
+  const periodLabel = period === 'annual' ? '/yr' : '/mo';
+
+  const employeeNSSFRate = split === '10-10' ? 0.10 : 0.05;
+  const employerNSSFRate = split === '10-10' ? 0.10 : 0.15;
+  const employeeNSSF = gross * employeeNSSFRate;
+  const employerNSSF = gross * employerNSSFRate;
+
+  const taxableIncome = gross - employeeNSSF;
+
+  const { paye, bracket } = calculatePAYE(taxableIncome);
+
+  const sdl = gross * 0.035;
+  const wcf = gross * 0.005;
+
+  const netSalary = gross - employeeNSSF - paye;
+  const totalEmployerCost = gross + employerNSSF + sdl + wcf;
+  const effectiveRate = ((paye / gross) * 100).toFixed(1);
+
+  const m = multiplier;
+
+  let html = '';
+
+  html += `<tr><td colspan="2" class="section-label">Employee Deductions</td></tr>`;
+  html += `<tr><td>Gross Salary</td><td>TZS ${fmt(gross * m)}${periodLabel}</td></tr>`;
+  html += `<tr><td>NSSF (${employeeNSSFRate * 100}%)</td><td>- TZS ${fmt(employeeNSSF * m)}${periodLabel}</td></tr>`;
+  html += `<tr><td>Taxable Income</td><td>TZS ${fmt(taxableIncome * m)}${periodLabel}</td></tr>`;
+  html += `<tr><td>PAYE (Income Tax)</td><td>- TZS ${fmt(paye * m)}${periodLabel}</td></tr>`;
+  html += `<tr class="subtotal highlight"><td>Net Take-Home Pay</td><td>TZS ${fmt(netSalary * m)}${periodLabel}</td></tr>`;
+
+  html += `<tr><td colspan="2" class="section-label employer">Employer Costs (on top of gross)</td></tr>`;
+  html += `<tr><td>NSSF Employer (${employerNSSFRate * 100}%)</td><td>TZS ${fmt(employerNSSF * m)}${periodLabel}</td></tr>`;
+  html += `<tr><td>SDL (3.5%)</td><td>TZS ${fmt(sdl * m)}${periodLabel}</td></tr>`;
+  html += `<tr><td>WCF (0.5%)</td><td>TZS ${fmt(wcf * m)}${periodLabel}</td></tr>`;
+  html += `<tr class="subtotal employer-cost"><td>Total Cost to Employer</td><td>TZS ${fmt(totalEmployerCost * m)}${periodLabel}</td></tr>`;
+
+  document.getElementById('resultsTable').innerHTML = html;
+  document.getElementById('bracketInfo').innerHTML =
+    `<strong>Effective PAYE rate:</strong> ${effectiveRate}% of gross salary. ` +
+    `Highest bracket applied: <strong>${bracket}</strong>.`;
+  document.getElementById('resultsCard').style.display = 'block';
+}
+
+document.getElementById('grossSalary').addEventListener('input', calculate);
+</script>
+
+</body>
+</html>
