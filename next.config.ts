@@ -2,12 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   turbopack: {},
-  webpack(config, { isServer }) {
-    if (!isServer) {
-      config.resolve.alias = { ...config.resolve.alias, canvas: false };
-    }
-    return config;
-  },
+  serverExternalPackages: ['pdfjs-dist', 'tesseract.js', 'canvas'],
   async headers() {
     return [
       {
