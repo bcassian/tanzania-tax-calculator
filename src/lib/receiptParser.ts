@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import type { Bill, LineItem, ParsedReceiptData } from '@/types/bill';
+import { EXPENSE_CATEGORIES } from '@/types/bill';
 import { fileToBase64, fileToDataUrl } from '@/lib/pdfUtils';
 
 // ─── Factory functions ────────────────────────────────────────────────────────
@@ -73,7 +74,9 @@ function mapParsedDataToBill(
     taxRate: data.taxRate ?? null,
     total,
     currency: data.currency ?? 'TZS',
-    category: null,
+    category: data.category && (EXPENSE_CATEGORIES as readonly string[]).includes(data.category)
+      ? data.category
+      : null,
     notes: data.notes ?? null,
     status: 'parsed',
     errorMessage: null,
@@ -98,9 +101,8 @@ export async function parseFile(
 
   onProgress({ stage: 'reading', message: 'Reading file…' });
 
-  // For images: generate a preview to display in the UI
-  // For PDFs: Claude reads them natively — no client-side rendering needed
-  const previewDataUrl = isPdf ? null : await fileToDataUrl(file);
+  // Generate a data URL preview for both images and PDFs
+  const previewDataUrl = await fileToDataUrl(file);
   const fileBase64 = await fileToBase64(file);
 
   onProgress({ stage: 'parsing', message: 'Extracting data with AI…' });

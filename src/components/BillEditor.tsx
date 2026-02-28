@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Bill, LineItem } from '@/types/bill';
 import { EXPENSE_CATEGORIES } from '@/types/bill';
 import { createLineItem } from '@/lib/receiptParser';
@@ -13,20 +13,65 @@ interface Props {
 
 const CURRENCIES = ['TZS', 'USD', 'EUR', 'GBP', 'KES', 'UGX', 'ZAR'];
 
+function DocumentPreview({
+  src,
+  isPdf,
+  alt,
+  className,
+}: {
+  src: string;
+  isPdf: boolean;
+  alt: string;
+  className?: string;
+}) {
+  if (isPdf) {
+    return (
+      <iframe
+        src={src}
+        title={alt}
+        className={className}
+        style={{ border: 'none' }}
+      />
+    );
+  }
+  return <img src={src} alt={alt} className={className} />;
+}
+
 export default function BillEditor({ bill, onSave, onClose }: Props) {
   const [draft, setDraft] = useState<Bill | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
 
   useEffect(() => {
     setDraft(bill ? { ...bill, lineItems: bill.lineItems.map((i) => ({ ...i })) } : null);
+    setLightboxOpen(false);
+    setPreviewCollapsed(false);
   }, [bill]);
 
+  const handleEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (lightboxOpen) setLightboxOpen(false);
+        else onClose();
+      }
+    },
+    [lightboxOpen, onClose]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [handleEscape]);
+
   if (!draft) return null;
+
+  const isPdf = draft.imagePreview?.startsWith('data:application/pdf') ?? false;
+  const hasPreview = !!draft.imagePreview;
 
   function updateField<K extends keyof Bill>(key: K, value: Bill[K]) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
-  // Line item helpers
   function updateLineItem(id: string, key: keyof LineItem, value: string | number | null) {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -53,7 +98,6 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
     });
   }
 
-  // Auto-recalculate subtotal from line items
   const lineItemsTotal = draft.lineItems.reduce((sum, i) => sum + (i.amount || 0), 0);
 
   function handleSave() {
@@ -66,6 +110,225 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
   const inputCls =
     'w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-900 placeholder-gray-300 focus:outline-none focus:border-[#F28500] focus:ring-2 focus:ring-[#F28500]/10';
 
+  /* ── Preview panel (reused in both mobile stacked & desktop side-by-side) ── */
+  const previewPanel = hasPreview ? (
+    <div className="flex flex-col items-center justify-center h-full">
+      <div
+        className="cursor-pointer w-full h-full flex items-center justify-center"
+        onClick={() => setLightboxOpen(true)}
+        title="Click to expand"
+      >
+        <DocumentPreview
+          src={draft.imagePreview!}
+          isPdf={isPdf}
+          alt={draft.sourceFile ?? 'Receipt preview'}
+          className={
+            isPdf
+              ? 'w-full h-full min-h-[300px] rounded-lg'
+              : 'max-w-full max-h-full object-contain rounded-lg'
+          }
+        />
+      </div>
+      <button
+        onClick={() => setLightboxOpen(true)}
+        className="mt-2 text-xs text-gray-400 hover:text-[#F28500] transition-colors"
+      >
+        Click to expand
+      </button>
+    </div>
+  ) : (
+    <div className="flex flex-col items-center justify-center h-full text-gray-300">
+      <span className="text-4xl mb-2">🧾</span>
+      <p className="text-xs">{draft.sourceFile ?? 'No preview available'}</p>
+    </div>
+  );
+
+  /* ── Form fields ── */
+  const formContent = (
+    <div className="space-y-5">
+      {/* Core fields */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Vendor / Supplier</label>
+          <input
+            type="text"
+            value={draft.vendor}
+            onChange={(e) => updateField('vendor', e.target.value)}
+            placeholder="e.g. Jumia Food"
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Invoice Number</label>
+          <input
+            type="text"
+            value={draft.invoiceNumber ?? ''}
+            onChange={(e) => updateField('invoiceNumber', e.target.value || null)}
+            placeholder="e.g. INV-001"
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+          <input
+            type="date"
+            value={draft.date}
+            onChange={(e) => updateField('date', e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Currency</label>
+          <select
+            value={draft.currency}
+            onChange={(e) => updateField('currency', e.target.value)}
+            className={inputCls}
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+          <select
+            value={draft.category ?? ''}
+            onChange={(e) => updateField('category', e.target.value || null)}
+            className={inputCls}
+          >
+            <option value="">— Select category —</option>
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Line items */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-medium text-gray-500">Line Items</label>
+          <button
+            onClick={addLineItem}
+            className="text-xs font-medium text-[#F28500] hover:text-[#d97400] transition-colors"
+          >
+            + Add row
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {draft.lineItems.length === 0 && (
+            <p className="text-xs text-gray-400 py-2 text-center">No line items — click &quot;Add row&quot; to add one.</p>
+          )}
+          {draft.lineItems.map((item) => (
+            <div key={item.id} className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 items-center">
+              <input
+                type="text"
+                value={item.description}
+                onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                placeholder="Description"
+                className={inputCls}
+              />
+              <input
+                type="number"
+                value={item.quantity ?? ''}
+                onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value ? Number(e.target.value) : null)}
+                placeholder="Qty"
+                min="0"
+                className={`${inputCls} text-right`}
+              />
+              <input
+                type="number"
+                value={item.unitPrice ?? ''}
+                onChange={(e) => updateLineItem(item.id, 'unitPrice', e.target.value ? Number(e.target.value) : null)}
+                placeholder="Price"
+                min="0"
+                className={`${inputCls} text-right`}
+              />
+              <input
+                type="number"
+                value={item.amount}
+                onChange={(e) => updateLineItem(item.id, 'amount', Number(e.target.value))}
+                placeholder="Amount"
+                min="0"
+                className={`${inputCls} text-right`}
+              />
+              <button
+                onClick={() => removeLineItem(item.id)}
+                className="text-gray-300 hover:text-red-400 transition-colors text-base leading-none"
+                title="Remove row"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {draft.lineItems.length > 0 && (
+          <div className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 mt-1">
+            <span className="text-xs text-gray-400">Description</span>
+            <span className="text-xs text-gray-400 text-right">Qty</span>
+            <span className="text-xs text-gray-400 text-right">Unit price</span>
+            <span className="text-xs text-gray-400 text-right">Amount</span>
+            <span />
+          </div>
+        )}
+      </div>
+
+      {/* Totals */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Subtotal{draft.lineItems.length > 0 ? ' (auto)' : ''}
+          </label>
+          <input
+            type="number"
+            value={draft.lineItems.length > 0 ? lineItemsTotal : draft.subtotal}
+            onChange={(e) => draft.lineItems.length === 0 && updateField('subtotal', Number(e.target.value))}
+            readOnly={draft.lineItems.length > 0}
+            min="0"
+            className={`${inputCls} text-right ${draft.lineItems.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Tax{draft.taxRate ? ` (${draft.taxRate}%)` : ''}
+          </label>
+          <input
+            type="number"
+            value={draft.taxAmount}
+            onChange={(e) => updateField('taxAmount', Number(e.target.value))}
+            min="0"
+            className={`${inputCls} text-right`}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Total</label>
+          <input
+            type="number"
+            value={draft.lineItems.length > 0 ? lineItemsTotal + draft.taxAmount : draft.total}
+            onChange={(e) => draft.lineItems.length === 0 && updateField('total', Number(e.target.value))}
+            readOnly={draft.lineItems.length > 0}
+            min="0"
+            className={`${inputCls} text-right font-semibold ${draft.lineItems.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`}
+          />
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+        <textarea
+          value={draft.notes ?? ''}
+          onChange={(e) => updateField('notes', e.target.value || null)}
+          placeholder="Any additional notes…"
+          rows={3}
+          className={`${inputCls} resize-none`}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Backdrop */}
@@ -74,9 +337,13 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
         onClick={onClose}
       />
 
-      {/* Modal */}
+      {/* Modal — wider on desktop when preview exists */}
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl shadow-xl max-h-[95dvh] flex flex-col rounded-t-2xl">
+        <div
+          className={`bg-white w-full sm:rounded-2xl shadow-xl max-h-[95dvh] flex flex-col rounded-t-2xl ${
+            hasPreview ? 'sm:max-w-5xl' : 'sm:max-w-2xl'
+          }`}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
             <h2 className="text-base font-semibold text-gray-900">Edit Bill</h2>
@@ -88,199 +355,46 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
             </button>
           </div>
 
-          {/* Scrollable body */}
-          <div className="overflow-y-auto flex-1 p-5 space-y-5">
-            {/* Image preview */}
-            {draft.imagePreview && (
-              <div className="flex justify-center">
-                <img
-                  src={draft.imagePreview}
-                  alt="Receipt preview"
-                  className="max-h-40 rounded-lg border border-gray-100 object-contain"
-                />
-              </div>
-            )}
-
-            {/* Core fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Vendor / Supplier</label>
-                <input
-                  type="text"
-                  value={draft.vendor}
-                  onChange={(e) => updateField('vendor', e.target.value)}
-                  placeholder="e.g. Jumia Food"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Invoice Number</label>
-                <input
-                  type="text"
-                  value={draft.invoiceNumber ?? ''}
-                  onChange={(e) => updateField('invoiceNumber', e.target.value || null)}
-                  placeholder="e.g. INV-001"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
-                <input
-                  type="date"
-                  value={draft.date}
-                  onChange={(e) => updateField('date', e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Currency</label>
-                <select
-                  value={draft.currency}
-                  onChange={(e) => updateField('currency', e.target.value)}
-                  className={inputCls}
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-                <select
-                  value={draft.category ?? ''}
-                  onChange={(e) => updateField('category', e.target.value || null)}
-                  className={inputCls}
-                >
-                  <option value="">— Select category —</option>
-                  {EXPENSE_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Line items */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-gray-500">Line Items</label>
-                <button
-                  onClick={addLineItem}
-                  className="text-xs font-medium text-[#F28500] hover:text-[#d97400] transition-colors"
-                >
-                  + Add row
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {draft.lineItems.length === 0 && (
-                  <p className="text-xs text-gray-400 py-2 text-center">No line items — click "Add row" to add one.</p>
-                )}
-                {draft.lineItems.map((item) => (
-                  <div key={item.id} className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 items-center">
-                    <input
-                      type="text"
-                      value={item.description}
-                      onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                      placeholder="Description"
-                      className={inputCls}
-                    />
-                    <input
-                      type="number"
-                      value={item.quantity ?? ''}
-                      onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value ? Number(e.target.value) : null)}
-                      placeholder="Qty"
-                      min="0"
-                      className={`${inputCls} text-right`}
-                    />
-                    <input
-                      type="number"
-                      value={item.unitPrice ?? ''}
-                      onChange={(e) => updateLineItem(item.id, 'unitPrice', e.target.value ? Number(e.target.value) : null)}
-                      placeholder="Price"
-                      min="0"
-                      className={`${inputCls} text-right`}
-                    />
-                    <input
-                      type="number"
-                      value={item.amount}
-                      onChange={(e) => updateLineItem(item.id, 'amount', Number(e.target.value))}
-                      placeholder="Amount"
-                      min="0"
-                      className={`${inputCls} text-right`}
-                    />
+          {/* Body — split on desktop, stacked on mobile */}
+          <div className="overflow-y-auto flex-1 sm:overflow-hidden">
+            <div className={`h-full ${hasPreview ? 'sm:flex' : ''}`}>
+              {/* Preview panel — desktop: left side; mobile: collapsible top */}
+              {hasPreview && (
+                <>
+                  {/* Mobile: collapsible preview */}
+                  <div className="sm:hidden border-b border-gray-100">
                     <button
-                      onClick={() => removeLineItem(item.id)}
-                      className="text-gray-300 hover:text-red-400 transition-colors text-base leading-none"
-                      title="Remove row"
+                      onClick={() => setPreviewCollapsed(!previewCollapsed)}
+                      className="w-full flex items-center justify-between px-5 py-3 text-xs font-medium text-gray-500 hover:text-gray-700"
                     >
-                      ✕
+                      <span>Source Document</span>
+                      <span className="text-gray-400">{previewCollapsed ? '▼ Show' : '▲ Hide'}</span>
                     </button>
+                    {!previewCollapsed && (
+                      <div className="px-5 pb-4 max-h-[40vh]">
+                        {previewPanel}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
 
-              {/* Column labels */}
-              {draft.lineItems.length > 0 && (
-                <div className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 mt-1">
-                  <span className="text-xs text-gray-400">Description</span>
-                  <span className="text-xs text-gray-400 text-right">Qty</span>
-                  <span className="text-xs text-gray-400 text-right">Unit price</span>
-                  <span className="text-xs text-gray-400 text-right">Amount</span>
-                  <span />
-                </div>
+                  {/* Desktop: side panel */}
+                  <div className="hidden sm:flex sm:flex-col sm:w-[40%] sm:border-r sm:border-gray-100 p-4 sm:overflow-y-auto">
+                    <p className="text-xs font-medium text-gray-500 mb-3">Source Document</p>
+                    <div className="flex-1 min-h-0">
+                      {previewPanel}
+                    </div>
+                  </div>
+                </>
               )}
-            </div>
 
-            {/* Totals */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Subtotal{draft.lineItems.length > 0 ? ' (auto)' : ''}
-                </label>
-                <input
-                  type="number"
-                  value={draft.lineItems.length > 0 ? lineItemsTotal : draft.subtotal}
-                  onChange={(e) => draft.lineItems.length === 0 && updateField('subtotal', Number(e.target.value))}
-                  readOnly={draft.lineItems.length > 0}
-                  min="0"
-                  className={`${inputCls} text-right ${draft.lineItems.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`}
-                />
+              {/* Form panel */}
+              <div
+                className={`p-5 overflow-y-auto ${
+                  hasPreview ? 'sm:w-[60%] sm:max-h-[calc(95dvh-8rem)]' : ''
+                }`}
+              >
+                {formContent}
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Tax{draft.taxRate ? ` (${draft.taxRate}%)` : ''}
-                </label>
-                <input
-                  type="number"
-                  value={draft.taxAmount}
-                  onChange={(e) => updateField('taxAmount', Number(e.target.value))}
-                  min="0"
-                  className={`${inputCls} text-right`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Total</label>
-                <input
-                  type="number"
-                  value={draft.lineItems.length > 0 ? lineItemsTotal + draft.taxAmount : draft.total}
-                  onChange={(e) => draft.lineItems.length === 0 && updateField('total', Number(e.target.value))}
-                  readOnly={draft.lineItems.length > 0}
-                  min="0"
-                  className={`${inputCls} text-right font-semibold ${draft.lineItems.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`}
-                />
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
-              <textarea
-                value={draft.notes ?? ''}
-                onChange={(e) => updateField('notes', e.target.value || null)}
-                placeholder="Any additional notes…"
-                rows={3}
-                className={`${inputCls} resize-none`}
-              />
             </div>
           </div>
 
@@ -302,6 +416,35 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxOpen && draft.imagePreview && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/80 z-[60] backdrop-blur-md"
+            onClick={() => setLightboxOpen(false)}
+          />
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-8">
+            <button
+              onClick={() => setLightboxOpen(false)}
+              className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl z-[80] transition-colors"
+              title="Close (Esc)"
+            >
+              ✕
+            </button>
+            <DocumentPreview
+              src={draft.imagePreview}
+              isPdf={isPdf}
+              alt={draft.sourceFile ?? 'Receipt'}
+              className={
+                isPdf
+                  ? 'w-full h-full max-w-4xl rounded-xl bg-white'
+                  : 'max-w-full max-h-full object-contain rounded-xl shadow-2xl'
+              }
+            />
+          </div>
+        </>
+      )}
     </>
   );
 }

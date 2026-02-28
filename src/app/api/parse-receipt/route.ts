@@ -22,6 +22,7 @@ Return this exact JSON structure:
   "taxRate": null or number,
   "total": null or number,
   "currency": "string (3-letter ISO code — use TZS for Tanzania, USD for US, etc.)",
+  "category": "string (one of the allowed categories below, or null if unclear)",
   "notes": "string or null"
 }
 
@@ -31,7 +32,8 @@ Rules:
 - For lineItems: if the receipt shows only a total with no itemization, return one line item with the vendor/product name as description
 - Date must be YYYY-MM-DD strictly; parse formats like "15 Jan 2025", "01/15/25", etc.
 - Currency default is TZS for Tanzania receipts; detect from symbols (Tsh, $, £, €, KSh, UGX)
-- taxRate should be a percentage value (e.g. 18 for 18% VAT), not a decimal`;
+- taxRate should be a percentage value (e.g. 18 for 18% VAT), not a decimal
+- category must be exactly one of: "Office Supplies", "Travel & Transport", "Utilities", "Meals & Entertainment", "Professional Services", "IT & Software", "Rent", "Marketing & Advertising", "Equipment", "Other". Infer from the vendor name, line item descriptions, and context. Use null only if truly ambiguous`;
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
 type ImageMime = (typeof IMAGE_TYPES)[number];

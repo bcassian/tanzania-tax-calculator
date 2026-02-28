@@ -67,13 +67,25 @@ export default function BillCard({ bill, selected, onToggleSelect, onEdit, onDel
 
         {/* Thumbnail */}
         {bill.imagePreview ? (
-          <img
-            src={bill.imagePreview}
-            alt={bill.sourceFile ?? 'Receipt'}
-            className="w-12 h-14 object-cover rounded-md border border-gray-100 shrink-0"
-          />
+          bill.imagePreview.startsWith('data:application/pdf') ? (
+            <div className="w-14 h-16 rounded-md border border-gray-100 shrink-0 overflow-hidden bg-white relative">
+              <object
+                data={bill.imagePreview}
+                type="application/pdf"
+                className="w-[200%] h-[200%] origin-top-left scale-50 pointer-events-none"
+              >
+                <div className="w-14 h-16 flex items-center justify-center text-xl">📄</div>
+              </object>
+            </div>
+          ) : (
+            <img
+              src={bill.imagePreview}
+              alt={bill.sourceFile ?? 'Receipt'}
+              className="w-14 h-16 object-cover rounded-md border border-gray-100 shrink-0"
+            />
+          )
         ) : (
-          <div className="w-12 h-14 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-xl shrink-0">
+          <div className="w-14 h-16 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-xl shrink-0">
             {bill.sourceFile?.endsWith('.pdf') ? '📄' : '🧾'}
           </div>
         )}

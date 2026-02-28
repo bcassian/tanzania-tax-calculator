@@ -43,6 +43,7 @@ export interface ParsedReceiptData {
   taxRate: number | null;
   total: number | null;
   currency: string | null;
+  category: string | null;
   notes: string | null;
 }
 
