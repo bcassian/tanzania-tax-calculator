@@ -100,11 +100,28 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
 
   const lineItemsTotal = draft.lineItems.reduce((sum, i) => sum + (i.amount || 0), 0);
 
+  // When tax-inclusive, line item amounts already contain tax, so:
+  //   total = lineItemsTotal (what you actually pay)
+  //   subtotal = lineItemsTotal - taxAmount (the ex-tax portion)
+  // When tax-exclusive:
+  //   subtotal = lineItemsTotal
+  //   total = lineItemsTotal + taxAmount
+  const hasLineItems = draft.lineItems.length > 0;
+  const computedSubtotal = hasLineItems
+    ? (draft.taxInclusive ? lineItemsTotal - (draft.taxAmount || 0) : lineItemsTotal)
+    : draft.subtotal;
+  const computedTotal = hasLineItems
+    ? (draft.taxInclusive ? lineItemsTotal : lineItemsTotal + (draft.taxAmount || 0))
+    : draft.total;
+
   function handleSave() {
     if (!draft) return;
-    const subtotal = draft.lineItems.length > 0 ? lineItemsTotal : draft.subtotal;
-    const total = subtotal + (draft.taxAmount || 0);
-    onSave({ ...draft, subtotal, total, status: draft.status === 'error' ? 'parsed' : draft.status });
+    onSave({
+      ...draft,
+      subtotal: computedSubtotal,
+      total: computedTotal,
+      status: draft.status === 'error' ? 'parsed' : draft.status,
+    });
   }
 
   const inputCls =
@@ -275,24 +292,40 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
         )}
       </div>
 
+      {/* Tax inclusive toggle */}
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={draft.taxInclusive}
+          onChange={(e) => updateField('taxInclusive', e.target.checked)}
+          className="w-4 h-4 rounded accent-[#F28500]"
+        />
+        <span className="text-xs font-medium text-gray-500">
+          Tax already included in prices
+        </span>
+        {draft.taxInclusive && (
+          <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">VAT inclusive</span>
+        )}
+      </label>
+
       {/* Totals */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            Subtotal{draft.lineItems.length > 0 ? ' (auto)' : ''}
+            {draft.taxInclusive ? 'Subtotal (ex-tax)' : 'Subtotal'}{hasLineItems ? ' (auto)' : ''}
           </label>
           <input
             type="number"
-            value={draft.lineItems.length > 0 ? lineItemsTotal : draft.subtotal}
-            onChange={(e) => draft.lineItems.length === 0 && updateField('subtotal', Number(e.target.value))}
-            readOnly={draft.lineItems.length > 0}
+            value={hasLineItems ? computedSubtotal : draft.subtotal}
+            onChange={(e) => !hasLineItems && updateField('subtotal', Number(e.target.value))}
+            readOnly={hasLineItems}
             min="0"
-            className={`${inputCls} text-right ${draft.lineItems.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`}
+            className={`${inputCls} text-right ${hasLineItems ? 'bg-gray-50 text-gray-500' : ''}`}
           />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            Tax{draft.taxRate ? ` (${draft.taxRate}%)` : ''}
+            Tax{draft.taxRate ? ` (${draft.taxRate}%)` : ''}{draft.taxInclusive ? ' (incl.)' : ''}
           </label>
           <input
             type="number"
@@ -306,11 +339,11 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
           <label className="block text-xs font-medium text-gray-500 mb-1">Total</label>
           <input
             type="number"
-            value={draft.lineItems.length > 0 ? lineItemsTotal + draft.taxAmount : draft.total}
-            onChange={(e) => draft.lineItems.length === 0 && updateField('total', Number(e.target.value))}
-            readOnly={draft.lineItems.length > 0}
+            value={hasLineItems ? computedTotal : draft.total}
+            onChange={(e) => !hasLineItems && updateField('total', Number(e.target.value))}
+            readOnly={hasLineItems}
             min="0"
-            className={`${inputCls} text-right font-semibold ${draft.lineItems.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`}
+            className={`${inputCls} text-right font-semibold ${hasLineItems ? 'bg-gray-50 text-gray-500' : ''}`}
           />
         </div>
       </div>

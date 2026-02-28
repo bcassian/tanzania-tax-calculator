@@ -37,7 +37,7 @@ function toXeroRows(bills: Bill[]): string[][] {
         item.quantity != null ? String(item.quantity) : '1',
         item.unitPrice != null ? String(item.unitPrice) : String(item.amount),
         '400', // AccountCode — default purchases account
-        bill.taxAmount > 0 ? 'Tax Inclusive' : 'Tax Exclusive',
+        bill.taxInclusive ? 'Tax Inclusive' : 'Tax Exclusive',
         bill.currency || 'TZS',
       ]);
     });

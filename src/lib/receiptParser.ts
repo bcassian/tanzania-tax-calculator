@@ -15,6 +15,7 @@ export function createEmptyBill(overrides: Partial<Bill> = {}): Bill {
     subtotal: 0,
     taxAmount: 0,
     taxRate: null,
+    taxInclusive: false,
     total: 0,
     currency: 'TZS',
     category: null,
@@ -61,7 +62,8 @@ function mapParsedDataToBill(
 
   const total = data.total ?? 0;
   const taxAmount = data.taxAmount ?? 0;
-  const subtotal = data.subtotal ?? total - taxAmount;
+  const taxInclusive = data.taxInclusive ?? false;
+  const subtotal = data.subtotal ?? (taxInclusive ? total - taxAmount : total);
 
   return {
     id: nanoid(),
@@ -72,6 +74,7 @@ function mapParsedDataToBill(
     subtotal,
     taxAmount,
     taxRate: data.taxRate ?? null,
+    taxInclusive,
     total,
     currency: data.currency ?? 'TZS',
     category: data.category && (EXPENSE_CATEGORIES as readonly string[]).includes(data.category)

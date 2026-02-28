@@ -17,6 +17,7 @@ export interface Bill {
   subtotal: number;
   taxAmount: number;
   taxRate: number | null;
+  taxInclusive: boolean; // true = tax already included in line item prices/total
   total: number;
   currency: string; // default 'TZS'
   category: string | null;
@@ -41,6 +42,7 @@ export interface ParsedReceiptData {
   subtotal: number | null;
   taxAmount: number | null;
   taxRate: number | null;
+  taxInclusive: boolean | null;
   total: number | null;
   currency: string | null;
   category: string | null;

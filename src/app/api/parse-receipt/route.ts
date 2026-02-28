@@ -20,6 +20,7 @@ Return this exact JSON structure:
   "subtotal": null or number,
   "taxAmount": null or number,
   "taxRate": null or number,
+  "taxInclusive": boolean,
   "total": null or number,
   "currency": "string (3-letter ISO code — use TZS for Tanzania, USD for US, etc.)",
   "category": "string (one of the allowed categories below, or null if unclear)",
@@ -33,6 +34,7 @@ Rules:
 - Date must be YYYY-MM-DD strictly; parse formats like "15 Jan 2025", "01/15/25", etc.
 - Currency default is TZS for Tanzania receipts; detect from symbols (Tsh, $, £, €, KSh, UGX)
 - taxRate should be a percentage value (e.g. 18 for 18% VAT), not a decimal
+- taxInclusive: set to true if the receipt indicates tax/VAT is ALREADY INCLUDED in the prices and total (e.g. "VAT included", "Tax already included", "Tax% (already included)"). Set to false if tax is added separately on top of the subtotal. When true, "total" should be the final amount paid (tax already in it), and "subtotal" should be total minus tax. When false, "subtotal" is the pre-tax amount and "total" is subtotal + tax. CRITICAL: ensure that total = subtotal + taxAmount when tax is exclusive, and total = subtotal + taxAmount when tax is inclusive (where subtotal is the ex-tax portion)
 - category must be exactly one of: "Office Supplies", "Travel & Transport", "Utilities", "Meals & Entertainment", "Professional Services", "IT & Software", "Rent", "Marketing & Advertising", "Equipment", "Other". Infer from the vendor name, line item descriptions, and context. Use null only if truly ambiguous`;
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
