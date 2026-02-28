@@ -219,6 +219,51 @@
     .row { grid-template-columns: 1fr; }
     .container { padding: 1rem 0.75rem; }
   }
+
+  .download-btn {
+    background: var(--blue);
+    color: var(--white);
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .download-btn:hover { opacity: 0.85; }
+
+  .print-summary {
+    display: none;
+    font-size: 0.8rem;
+    color: var(--gray);
+    padding: 0.6rem 0 0.75rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+  }
+
+  @media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { margin: 1.5cm; size: A4; }
+    body { background: white; }
+    #inputCard, #downloadWrap { display: none !important; }
+    .print-summary { display: block !important; }
+    header {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .card {
+      box-shadow: none;
+      border: 1px solid var(--border);
+      break-inside: avoid;
+    }
+    footer { display: block !important; margin-top: 1rem; }
+  }
 </style>
 </head>
 <body>
@@ -229,7 +274,7 @@
 </header>
 
 <div class="container">
-  <div class="card">
+  <div class="card" id="inputCard">
     <h2>Enter Salary Details</h2>
 
     <div class="form-group">
@@ -274,8 +319,15 @@
 
   <div class="card" id="resultsCard" style="display:none;">
     <h2>Tax Breakdown</h2>
+    <div class="print-summary" id="printSummary"></div>
     <table class="result-table" id="resultsTable"></table>
     <div class="bracket-info" id="bracketInfo"></div>
+  </div>
+
+  <div id="downloadWrap" style="display:none; text-align:center; margin-bottom: 1.25rem;">
+    <button class="download-btn" onclick="window.print()">
+      &#8681; Download as PDF
+    </button>
   </div>
 
   <div class="card">
@@ -350,6 +402,7 @@ function calculate() {
   const gross = parseFloat(document.getElementById('grossSalary').value);
   if (!gross || gross <= 0) {
     document.getElementById('resultsCard').style.display = 'none';
+    document.getElementById('downloadWrap').style.display = 'none';
     return;
   }
 
@@ -396,6 +449,16 @@ function calculate() {
     `<strong>Effective PAYE rate:</strong> ${effectiveRate}% of gross salary. ` +
     `Highest bracket applied: <strong>${bracket}</strong>.`;
   document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('downloadWrap').style.display = 'block';
+
+  const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const nssfLabel = split === '10-10' ? '10% Employee / 10% Employer' : '5% Employee / 15% Employer';
+  document.getElementById('printSummary').innerHTML =
+    `Calculated: ${dateStr} &nbsp;·&nbsp; ` +
+    `Gross: TZS ${fmt(gross)}/mo &nbsp;·&nbsp; ` +
+    `${residency === 'resident' ? 'Resident' : 'Non-Resident'}, ${sector === 'private' ? 'Private' : 'Public'} Sector &nbsp;·&nbsp; ` +
+    `NSSF: ${nssfLabel} &nbsp;·&nbsp; ` +
+    `View: ${period === 'annual' ? 'Annual' : 'Monthly'}`;
 }
 
 document.getElementById('grossSalary').addEventListener('input', calculate);
