@@ -7,6 +7,9 @@ node_modules/
 .next/
 out/
 
+# Generated assets (copied from node_modules at build time via predev/prebuild)
+public/pdf.worker.min.mjs
+
 # Environment variables (DO NOT commit real keys)
 .env.local
 .env.*.local

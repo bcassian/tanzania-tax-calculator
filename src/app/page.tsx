@@ -9,6 +9,13 @@ const apps = [
     icon: '🧮',
   },
   {
+    title: 'Receipt & Invoice Parser',
+    description: 'Upload photos or PDFs of receipts and invoices. Extract vendor, date, line items and totals automatically. Export to Xero or QuickBooks CSV.',
+    href: '/receipt-parser',
+    badge: 'Beta',
+    icon: '🧾',
+  },
+  {
     title: 'Payroll Manager',
     description: 'Bulk payroll calculations for multiple employees. Export to PDF or CSV.',
     href: '#',
