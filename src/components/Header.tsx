@@ -5,7 +5,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 
 export default function Header() {
   return (
-    <header className="bg-[#006233] text-white border-b-4 border-[#FCD116]">
+    <header className="bg-[#F28500] text-white border-b-4 border-[#FCD116]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
         <Link href="/" className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
           <span className="text-lg sm:text-xl font-bold leading-tight">Tanzania Tax Tools</span>
