@@ -62,7 +62,7 @@ export default function BillsList({ bills, onEdit, onDelete, onDeleteSelected }:
   return (
     <div className="space-y-3">
       {/* Toolbar */}
-      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 flex flex-wrap items-center gap-2 justify-between">
+      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-700">
             {bills.length} bill{bills.length !== 1 ? 's' : ''}
@@ -84,7 +84,7 @@ export default function BillsList({ bills, onEdit, onDelete, onDeleteSelected }:
         </div>
 
         {/* Export controls */}
-        <div className="flex items-center gap-2 relative">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Format selector */}
           <select
             value={exportFormat}

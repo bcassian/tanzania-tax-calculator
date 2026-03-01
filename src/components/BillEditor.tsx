@@ -238,51 +238,105 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
             <p className="text-xs text-gray-400 py-2 text-center">No line items — click &quot;Add row&quot; to add one.</p>
           )}
           {draft.lineItems.map((item) => (
-            <div key={item.id} className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 items-center">
-              <input
-                type="text"
-                value={item.description}
-                onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                placeholder="Description"
-                className={inputCls}
-              />
-              <input
-                type="number"
-                value={item.quantity ?? ''}
-                onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value ? Number(e.target.value) : null)}
-                placeholder="Qty"
-                min="0"
-                className={`${inputCls} text-right`}
-              />
-              <input
-                type="number"
-                value={item.unitPrice ?? ''}
-                onChange={(e) => updateLineItem(item.id, 'unitPrice', e.target.value ? Number(e.target.value) : null)}
-                placeholder="Price"
-                min="0"
-                className={`${inputCls} text-right`}
-              />
-              <input
-                type="number"
-                value={item.amount}
-                onChange={(e) => updateLineItem(item.id, 'amount', Number(e.target.value))}
-                placeholder="Amount"
-                min="0"
-                className={`${inputCls} text-right`}
-              />
-              <button
-                onClick={() => removeLineItem(item.id)}
-                className="text-gray-300 hover:text-red-400 transition-colors text-base leading-none"
-                title="Remove row"
-              >
-                ✕
-              </button>
+            <div key={item.id}>
+              {/* Mobile: description + remove on first row, numbers on second row */}
+              <div className="sm:hidden space-y-1.5 py-2 border-b border-gray-50 last:border-0">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={item.description}
+                    onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                    placeholder="Description"
+                    className={`${inputCls} flex-1`}
+                  />
+                  <button
+                    onClick={() => removeLineItem(item.id)}
+                    className="text-gray-300 hover:text-red-400 transition-colors text-base leading-none p-1 shrink-0"
+                    title="Remove row"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <input
+                    type="number"
+                    value={item.quantity ?? ''}
+                    onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value ? Number(e.target.value) : null)}
+                    placeholder="Qty"
+                    min="0"
+                    className={`${inputCls} text-right`}
+                  />
+                  <input
+                    type="number"
+                    value={item.unitPrice ?? ''}
+                    onChange={(e) => updateLineItem(item.id, 'unitPrice', e.target.value ? Number(e.target.value) : null)}
+                    placeholder="Price"
+                    min="0"
+                    className={`${inputCls} text-right`}
+                  />
+                  <input
+                    type="number"
+                    value={item.amount}
+                    onChange={(e) => updateLineItem(item.id, 'amount', Number(e.target.value))}
+                    placeholder="Amount"
+                    min="0"
+                    className={`${inputCls} text-right`}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <span className="text-xs text-gray-400 text-right">Qty</span>
+                  <span className="text-xs text-gray-400 text-right">Unit price</span>
+                  <span className="text-xs text-gray-400 text-right">Amount</span>
+                </div>
+              </div>
+
+              {/* Desktop: all in one row */}
+              <div className="hidden sm:grid sm:grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 items-center">
+                <input
+                  type="text"
+                  value={item.description}
+                  onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                  placeholder="Description"
+                  className={inputCls}
+                />
+                <input
+                  type="number"
+                  value={item.quantity ?? ''}
+                  onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value ? Number(e.target.value) : null)}
+                  placeholder="Qty"
+                  min="0"
+                  className={`${inputCls} text-right`}
+                />
+                <input
+                  type="number"
+                  value={item.unitPrice ?? ''}
+                  onChange={(e) => updateLineItem(item.id, 'unitPrice', e.target.value ? Number(e.target.value) : null)}
+                  placeholder="Price"
+                  min="0"
+                  className={`${inputCls} text-right`}
+                />
+                <input
+                  type="number"
+                  value={item.amount}
+                  onChange={(e) => updateLineItem(item.id, 'amount', Number(e.target.value))}
+                  placeholder="Amount"
+                  min="0"
+                  className={`${inputCls} text-right`}
+                />
+                <button
+                  onClick={() => removeLineItem(item.id)}
+                  className="text-gray-300 hover:text-red-400 transition-colors text-base leading-none"
+                  title="Remove row"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           ))}
         </div>
 
         {draft.lineItems.length > 0 && (
-          <div className="grid grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 mt-1">
+          <div className="hidden sm:grid sm:grid-cols-[1fr_80px_80px_80px_32px] gap-1.5 mt-1">
             <span className="text-xs text-gray-400">Description</span>
             <span className="text-xs text-gray-400 text-right">Qty</span>
             <span className="text-xs text-gray-400 text-right">Unit price</span>
@@ -382,7 +436,7 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
             <h2 className="text-base font-semibold text-gray-900">Edit Bill</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none"
+              className="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none p-1 -mr-1"
             >
               ✕
             </button>
@@ -422,8 +476,8 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
 
               {/* Form panel */}
               <div
-                className={`p-5 overflow-y-auto ${
-                  hasPreview ? 'sm:w-[60%] sm:max-h-[calc(95dvh-8rem)]' : ''
+                className={`p-5 ${
+                  hasPreview ? 'sm:w-[60%] sm:overflow-y-auto sm:max-h-[calc(95dvh-8rem)]' : ''
                 }`}
               >
                 {formContent}
@@ -460,7 +514,7 @@ export default function BillEditor({ bill, onSave, onClose }: Props) {
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-8">
             <button
               onClick={() => setLightboxOpen(false)}
-              className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl z-[80] transition-colors"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white/70 hover:text-white text-2xl z-[80] transition-colors p-3 rounded-full hover:bg-white/10"
               title="Close (Esc)"
             >
               ✕

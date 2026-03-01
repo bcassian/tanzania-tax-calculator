@@ -125,17 +125,17 @@ export default function BillCard({ bill, selected, onToggleSelect, onEdit, onDel
             </div>
 
             {!isProcessing && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={onEdit}
-                  className="text-xs font-medium text-[#F28500] hover:text-[#d97400] transition-colors"
+                  className="text-xs font-medium text-[#F28500] hover:text-[#d97400] transition-colors px-2 py-1"
                 >
                   Edit
                 </button>
                 <span className="text-gray-200">|</span>
                 <button
                   onClick={onDelete}
-                  className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors"
+                  className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors px-2 py-1"
                 >
                   Delete
                 </button>
