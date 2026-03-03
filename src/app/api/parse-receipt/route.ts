@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import Anthropic from '@anthropic-ai/sdk';
 
 const PARSE_PROMPT = `You are a receipt/invoice data extraction assistant. Extract structured data from this receipt/invoice and return ONLY valid JSON with no markdown, no code fences, no explanation.
@@ -41,11 +40,6 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as co
 type ImageMime = (typeof IMAGE_TYPES)[number];
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured', fallback: true }, { status: 503 });
