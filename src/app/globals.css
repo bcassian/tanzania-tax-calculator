@@ -40,4 +40,9 @@
     display: block !important;
     margin-top: 1rem;
   }
+
+  [data-sidebar],
+  [data-sidebar-backdrop] {
+    display: none !important;
+  }
 }

@@ -2,16 +2,11 @@ import { Client } from '@notionhq/client';
 import type {
   BlockObjectResponse,
   PageObjectResponse,
-  RichTextItemResponse,
 } from '@notionhq/client/build/src/api-endpoints';
 
-// ── Client ──────────────────────────────────────────────────────────────────
-
-const notion = new Client({ auth: process.env.NOTION_API_KEY });
-
-const DATABASE_ID = process.env.NOTION_DATABASE_ID ?? '';
-
-// ── Types ───────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
 
 export type NotionBlock = BlockObjectResponse & {
   children?: NotionBlock[];
@@ -20,16 +15,33 @@ export type NotionBlock = BlockObjectResponse & {
 export interface NotionPage {
   id: string;
   title: string;
-  icon: string | null;
+  icon: string;
 }
 
-export type { RichTextItemResponse };
+/* ------------------------------------------------------------------ */
+/*  Client                                                             */
+/* ------------------------------------------------------------------ */
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+function getClient() {
+  const token = process.env.NOTION_API_KEY;
+  if (!token) throw new Error('Missing NOTION_API_KEY environment variable');
+  return new Client({ auth: token });
+}
 
-/** Extract plain-text title from a Notion page object. */
+function getDatabaseId() {
+  const id = process.env.NOTION_DATABASE_ID;
+  if (!id) throw new Error('Missing NOTION_DATABASE_ID environment variable');
+  return id;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
 function extractTitle(page: PageObjectResponse): string {
-  for (const prop of Object.values(page.properties)) {
+  const props = page.properties;
+  for (const key of Object.keys(props)) {
+    const prop = props[key];
     if (prop.type === 'title' && prop.title.length > 0) {
       return prop.title.map((t) => t.plain_text).join('');
     }
@@ -37,50 +49,50 @@ function extractTitle(page: PageObjectResponse): string {
   return 'Untitled';
 }
 
-/** Extract emoji icon (or null) from a Notion page object. */
-function extractIcon(page: PageObjectResponse): string | null {
+function extractIcon(page: PageObjectResponse): string {
   if (page.icon?.type === 'emoji') return page.icon.emoji;
-  return null;
+  return '📄';
 }
 
-// ── Public API ──────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/*  Public API                                                         */
+/* ------------------------------------------------------------------ */
 
-/**
- * Fetch every page in the database, sorted by title.
- * Handles Notion's 100-item pagination automatically.
- */
+/** Fetch every page from the Notion database, sorted by title. */
 export async function getDatabasePages(): Promise<NotionPage[]> {
+  const notion = getClient();
+  const databaseId = getDatabaseId();
+
   const pages: NotionPage[] = [];
   let cursor: string | undefined;
 
   do {
-    const response = await notion.dataSources.query({
-      data_source_id: DATABASE_ID,
+    const res = await notion.databases.query({
+      database_id: databaseId,
       start_cursor: cursor,
       page_size: 100,
-      sorts: [{ property: 'Page', direction: 'ascending' }],
+      sorts: [{ property: 'title', direction: 'ascending' }],
     });
 
-    for (const result of response.results) {
-      if (!('properties' in result)) continue;
-      const page = result as PageObjectResponse;
+    for (const page of res.results) {
+      if (!('properties' in page)) continue;
+      const p = page as PageObjectResponse;
       pages.push({
-        id: page.id,
-        title: extractTitle(page),
-        icon: extractIcon(page),
+        id: p.id,
+        title: extractTitle(p),
+        icon: extractIcon(p),
       });
     }
 
-    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
   } while (cursor);
 
   return pages;
 }
 
-/**
- * Fetch a single page's properties (title, icon, etc.).
- */
+/** Fetch a single page's metadata. */
 export async function getPage(pageId: string): Promise<NotionPage> {
+  const notion = getClient();
   const page = (await notion.pages.retrieve({ page_id: pageId })) as PageObjectResponse;
   return {
     id: page.id,
@@ -89,37 +101,35 @@ export async function getPage(pageId: string): Promise<NotionPage> {
   };
 }
 
-/**
- * Recursively fetch all blocks of a page (including nested children).
- * `depth` limits recursion to avoid runaway API calls.
- */
+/** Recursively fetch all blocks for a page. */
 export async function getPageBlocks(
   pageId: string,
-  depth: number = 3,
+  depth = 3,
 ): Promise<NotionBlock[]> {
+  const notion = getClient();
+
   const blocks: NotionBlock[] = [];
   let cursor: string | undefined;
 
   do {
-    const response = await notion.blocks.children.list({
+    const res = await notion.blocks.children.list({
       block_id: pageId,
       start_cursor: cursor,
       page_size: 100,
     });
 
-    for (const result of response.results) {
-      if (!('type' in result)) continue;
-      const block = result as NotionBlock;
+    for (const block of res.results) {
+      if (!('type' in block)) continue;
+      const b = block as NotionBlock;
 
-      // Recursively fetch children for blocks that have them
-      if (block.has_children && depth > 0) {
-        block.children = await getPageBlocks(block.id, depth - 1);
+      if (b.has_children && depth > 0) {
+        b.children = await getPageBlocks(b.id, depth - 1);
       }
 
-      blocks.push(block);
+      blocks.push(b);
     }
 
-    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
   } while (cursor);
 
   return blocks;

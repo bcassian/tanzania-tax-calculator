@@ -3,88 +3,77 @@ import Link from 'next/link';
 import { getPage, getPageBlocks } from '@/lib/notion';
 import { NotionBlocks } from '@/components/NotionBlockRenderer';
 
-// Revalidate every 5 minutes so Notion edits appear without redeployment
-export const revalidate = 300;
+export const revalidate = 300; // ISR — refresh every 5 minutes
 
-// ── Dynamic metadata ────────────────────────────────────────────────────────
+interface Props {
+  params: Promise<{ pageId: string }>;
+}
 
-type PageProps = { params: Promise<{ pageId: string }> };
-
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { pageId } = await params;
   try {
     const page = await getPage(pageId);
     return {
-      title: `${page.title} — Tanzania Master Tax Guide`,
-      description: `Read about ${page.title} in the Tanzania Master Tax Guide.`,
+      title: `${page.title} — Master Tax Guide — Tanzania Tax Tools`,
+      description: `Learn about ${page.title} in the Tanzania Master Tax Guide.`,
     };
   } catch {
-    return { title: 'Section Not Found — Tanzania Master Tax Guide' };
+    return { title: 'Tax Guide — Tanzania Tax Tools' };
   }
 }
 
-// ── Page component ──────────────────────────────────────────────────────────
-
-export default async function TaxGuideSection({
-  params,
-}: PageProps) {
+export default async function TaxGuideTopicPage({ params }: Props) {
   const { pageId } = await params;
 
-  let page;
-  let blocks;
+  let page: Awaited<ReturnType<typeof getPage>> | null = null;
+  let blocks: Awaited<ReturnType<typeof getPageBlocks>> = [];
   let error = false;
 
   try {
-    [page, blocks] = await Promise.all([
-      getPage(pageId),
-      getPageBlocks(pageId),
-    ]);
+    [page, blocks] = await Promise.all([getPage(pageId), getPageBlocks(pageId)]);
   } catch {
     error = true;
   }
 
-  if (error || !page || !blocks) {
+  if (error || !page) {
     return (
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <Link
           href="/tax-guide"
-          className="inline-flex items-center gap-1 text-sm text-[#F28500] hover:text-[#d97400] transition-colors mb-6"
+          className="inline-flex items-center gap-1 text-sm text-[#F28500] hover:text-[#d97400] transition-colors mb-4"
         >
           ← Back to guide
         </Link>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-          <strong>Section not found.</strong> This section may have been removed
-          or the link may be outdated.
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">
+          Unable to load this topic. It may have been removed or the connection to Notion failed.
         </div>
       </main>
     );
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      {/* Back link */}
+    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <Link
         href="/tax-guide"
-        className="inline-flex items-center gap-1 text-sm text-[#F28500] hover:text-[#d97400] transition-colors mb-6"
+        className="inline-flex items-center gap-1 text-sm text-[#F28500] hover:text-[#d97400] transition-colors mb-4"
       >
         ← Back to guide
       </Link>
 
-      {/* Page title */}
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-        {page.icon && <span className="mr-2">{page.icon}</span>}
-        {page.title}
-      </h1>
-      <p className="text-xs text-gray-400 mb-6">
-        View only · Updated from Notion
-      </p>
+      <div className="mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <span>{page.icon}</span>
+          {page.title}
+        </h1>
+      </div>
 
-      {/* Rendered Notion content */}
-      <article className="space-y-3">
+      <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
         <NotionBlocks blocks={blocks} />
-      </article>
+      </div>
+
+      <p className="text-xs text-gray-400 text-center mt-6">
+        View only · Content updated from Notion
+      </p>
     </main>
   );
 }

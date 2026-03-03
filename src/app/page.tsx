@@ -1,42 +1,5 @@
 import AppCard from '@/components/AppCard';
-
-const apps = [
-  {
-    title: 'Tanzania Tax Calculator',
-    description: 'PAYE, NSSF, SDL & WCF — monthly or annual breakdown for employees and employers.',
-    href: '/tax-calculator',
-    badge: '2025/2026',
-    icon: '🧮',
-  },
-  {
-    title: 'Receipt & Invoice Parser',
-    description: 'Upload photos or PDFs of receipts and invoices. Extract vendor, date, line items and totals automatically. Export to Xero or QuickBooks CSV.',
-    href: '/receipt-parser',
-    badge: 'Beta',
-    icon: '🧾',
-  },
-  {
-    title: 'Master Tax Guide',
-    description: 'Comprehensive Tanzania tax reference — income tax, VAT, withholding, stamp duty and more. Always up to date.',
-    href: '/tax-guide',
-    badge: 'New',
-    icon: '📖',
-  },
-  {
-    title: 'Payroll Manager',
-    description: 'Bulk payroll calculations for multiple employees. Export to PDF or CSV.',
-    href: '#',
-    badge: 'Coming soon',
-    icon: '👥',
-  },
-  {
-    title: 'Corporate Tax Estimator',
-    description: 'Estimate corporation tax liability based on net profit and applicable deductions.',
-    href: '#',
-    badge: 'Coming soon',
-    icon: '🏢',
-  },
-];
+import { NAV_TOOLS } from '@/lib/navConfig';
 
 export default function HomePage() {
   return (
@@ -47,8 +10,15 @@ export default function HomePage() {
       </div>
 
       <div className="space-y-3">
-        {apps.map((app) => (
-          <AppCard key={app.href} {...app} />
+        {NAV_TOOLS.map((app) => (
+          <AppCard
+            key={app.shortTitle}
+            title={app.title}
+            description={app.description}
+            href={app.href}
+            badge={app.badge}
+            icon={app.icon}
+          />
         ))}
       </div>
     </main>

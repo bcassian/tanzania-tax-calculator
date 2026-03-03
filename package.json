@@ -11,7 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@clerk/nextjs": "^6.39.0",
-    "@notionhq/client": "^5.11.1",
+    "@notionhq/client": "^2.3.0",
     "nanoid": "^5.1.6",
     "next": "16.1.6",
     "react": "19.2.3",

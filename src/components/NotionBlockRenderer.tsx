@@ -1,111 +1,112 @@
-import React, { Fragment } from 'react';
 import Link from 'next/link';
-import type { NotionBlock, RichTextItemResponse } from '@/lib/notion';
+import type { NotionBlock } from '@/lib/notion';
+import type { RichTextItemResponse } from '@notionhq/client/build/src/api-endpoints';
 
-// ── Colour mapping ──────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/*  Colour mapping                                                     */
+/* ------------------------------------------------------------------ */
 
 const COLOR_MAP: Record<string, string> = {
-  // Text colours
   gray: 'text-gray-500',
-  brown: 'text-amber-700',
+  brown: 'text-amber-800',
   orange: 'text-orange-600',
-  yellow: 'text-yellow-700',
-  green: 'text-green-600',
+  yellow: 'text-yellow-600',
+  green: 'text-green-700',
   blue: 'text-blue-600',
   purple: 'text-purple-600',
   pink: 'text-pink-600',
   red: 'text-red-600',
-  // Background colours
-  gray_background: 'bg-gray-100 px-0.5 rounded',
-  brown_background: 'bg-amber-50 px-0.5 rounded',
-  orange_background: 'bg-orange-50 px-0.5 rounded',
-  yellow_background: 'bg-yellow-100 px-0.5 rounded',
-  green_background: 'bg-green-50 px-0.5 rounded',
-  blue_background: 'bg-blue-50 px-0.5 rounded',
-  purple_background: 'bg-purple-50 px-0.5 rounded',
-  pink_background: 'bg-pink-50 px-0.5 rounded',
-  red_background: 'bg-red-50 px-0.5 rounded',
+  gray_background: 'bg-gray-100',
+  brown_background: 'bg-amber-50',
+  orange_background: 'bg-orange-50',
+  yellow_background: 'bg-yellow-50',
+  green_background: 'bg-green-50',
+  blue_background: 'bg-blue-50',
+  purple_background: 'bg-purple-50',
+  pink_background: 'bg-pink-50',
+  red_background: 'bg-red-50',
 };
 
-// ── Rich-text renderer ──────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/*  Rich text renderer                                                 */
+/* ------------------------------------------------------------------ */
 
 function RichText({ items }: { items: RichTextItemResponse[] }) {
-  if (!items || items.length === 0) return null;
-
   return (
     <>
       {items.map((item, i) => {
-        let node: React.ReactNode = item.plain_text;
+        if (item.type !== 'text') return <span key={i}>{item.plain_text}</span>;
 
-        const { bold, italic, strikethrough, underline, code, color } =
-          item.annotations;
+        let el: React.ReactNode = item.plain_text;
+        const a = item.annotations;
 
-        if (code) {
-          node = (
-            <code className="text-sm bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded font-mono">
-              {node}
+        if (a.bold) el = <strong>{el}</strong>;
+        if (a.italic) el = <em>{el}</em>;
+        if (a.strikethrough) el = <s>{el}</s>;
+        if (a.underline) el = <u>{el}</u>;
+        if (a.code)
+          el = (
+            <code className="text-sm bg-gray-100 text-pink-600 px-1 py-0.5 rounded">
+              {el}
             </code>
           );
-        }
-        if (bold) node = <strong className="font-semibold">{node}</strong>;
-        if (italic) node = <em>{node}</em>;
-        if (strikethrough) node = <s>{node}</s>;
-        if (underline) node = <u>{node}</u>;
 
-        // Links
-        if (item.type === 'text' && item.text.link) {
+        const colorClass =
+          a.color !== 'default' ? COLOR_MAP[a.color] ?? '' : '';
+
+        if (item.text.link) {
           const href = item.text.link.url;
-          const isInternal = href.startsWith('/');
-          node = isInternal ? (
-            <Link href={href} className="text-[#F28500] hover:underline">
-              {node}
-            </Link>
-          ) : (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#F28500] hover:underline"
-            >
-              {node}
-            </a>
-          );
+          if (href.startsWith('/')) {
+            el = (
+              <Link
+                key={i}
+                href={href}
+                className={`text-[#F28500] hover:underline ${colorClass}`}
+              >
+                {el}
+              </Link>
+            );
+          } else {
+            el = (
+              <a
+                key={i}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`text-[#F28500] hover:underline ${colorClass}`}
+              >
+                {el}
+              </a>
+            );
+          }
+          return el;
         }
 
-        // Colours
-        if (color && color !== 'default') {
-          const cls = COLOR_MAP[color] ?? '';
-          if (cls) node = <span className={cls}>{node}</span>;
-        }
-
-        return <Fragment key={i}>{node}</Fragment>;
+        return (
+          <span key={i} className={colorClass || undefined}>
+            {el}
+          </span>
+        );
       })}
     </>
   );
 }
 
-// ── Block-level helpers ─────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/*  Individual block renderers                                         */
+/* ------------------------------------------------------------------ */
 
-/** Safely read the rich_text array from any block type. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function blockRichText(block: NotionBlock): RichTextItemResponse[] {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = (block as any)[block.type];
-  return data?.rich_text ?? [];
+function getText(block: NotionBlock): RichTextItemResponse[] {
+  const b = block as Record<string, unknown>;
+  const inner = b[block.type] as { rich_text?: RichTextItemResponse[] } | undefined;
+  return inner?.rich_text ?? [];
 }
-
-/** Check if a rich_text array is empty / whitespace only. */
-function isEmptyText(items: RichTextItemResponse[]): boolean {
-  return items.every((t) => t.plain_text.trim() === '');
-}
-
-// ── Individual block renderers ──────────────────────────────────────────────
 
 function ParagraphBlock({ block }: { block: NotionBlock }) {
-  const text = blockRichText(block);
-  if (isEmptyText(text)) return <div className="h-4" />;
+  const text = getText(block);
+  if (text.length === 0) return <div className="h-4" />;
   return (
-    <p className="text-gray-700 leading-relaxed">
+    <p className="text-gray-700 leading-relaxed my-2">
       <RichText items={text} />
     </p>
   );
@@ -118,53 +119,29 @@ function HeadingBlock({
   block: NotionBlock;
   level: 1 | 2 | 3;
 }) {
-  const text = blockRichText(block);
+  const text = getText(block);
   const Tag = level === 1 ? 'h2' : level === 2 ? 'h3' : 'h4';
-  const sizes = {
-    1: 'text-xl font-bold text-gray-900 mt-8 mb-3',
-    2: 'text-lg font-semibold text-gray-900 mt-6 mb-2',
-    3: 'text-base font-semibold text-gray-800 mt-5 mb-2',
-  };
+  const styles =
+    level === 1
+      ? 'text-xl font-bold text-gray-900 mt-8 mb-3'
+      : level === 2
+        ? 'text-lg font-semibold text-gray-900 mt-6 mb-2'
+        : 'text-base font-semibold text-gray-800 mt-5 mb-2';
   return (
-    <Tag className={sizes[level]}>
+    <Tag className={styles}>
       <RichText items={text} />
     </Tag>
   );
 }
 
-function ListGroup({
-  blocks,
-  ordered,
-}: {
-  blocks: NotionBlock[];
-  ordered: boolean;
-}) {
-  const Tag = ordered ? 'ol' : 'ul';
-  const listCls = ordered
-    ? 'list-decimal pl-6 space-y-1.5 text-gray-700 leading-relaxed'
-    : 'list-disc pl-6 space-y-1.5 text-gray-700 leading-relaxed';
-
-  return (
-    <Tag className={listCls}>
-      {blocks.map((block) => (
-        <li key={block.id}>
-          <RichText items={blockRichText(block)} />
-          {block.children && block.children.length > 0 && (
-            <div className="mt-1.5">
-              <NotionBlocks blocks={block.children} />
-            </div>
-          )}
-        </li>
-      ))}
-    </Tag>
-  );
-}
-
 function ToggleBlock({ block }: { block: NotionBlock }) {
-  const text = blockRichText(block);
+  const text = getText(block);
   return (
     <details className="group my-2">
-      <summary className="cursor-pointer text-gray-700 font-medium leading-relaxed hover:text-gray-900 transition-colors">
+      <summary className="cursor-pointer text-gray-700 font-medium hover:text-gray-900 transition-colors list-none flex items-center gap-1.5">
+        <span className="text-gray-400 text-xs transition-transform group-open:rotate-90">
+          ▶
+        </span>
         <RichText items={text} />
       </summary>
       {block.children && block.children.length > 0 && (
@@ -177,63 +154,71 @@ function ToggleBlock({ block }: { block: NotionBlock }) {
 }
 
 function QuoteBlock({ block }: { block: NotionBlock }) {
-  const text = blockRichText(block);
+  const text = getText(block);
   return (
-    <blockquote className="border-l-4 border-[#F28500]/40 pl-4 py-1 text-gray-600 italic leading-relaxed">
+    <blockquote className="border-l-4 border-[#F28500]/40 pl-4 py-1 my-3 italic text-gray-600">
       <RichText items={text} />
     </blockquote>
   );
 }
 
 function CalloutBlock({ block }: { block: NotionBlock }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = (block as any).callout;
-  const text: RichTextItemResponse[] = data?.rich_text ?? [];
-  const iconEmoji =
-    data?.icon?.type === 'emoji' ? data.icon.emoji : null;
-  const color: string = data?.color ?? 'default';
-  const bgCls = color.includes('background')
-    ? COLOR_MAP[color] ?? 'bg-gray-50'
-    : 'bg-gray-50';
-
+  const text = getText(block);
+  const b = block as Record<string, unknown>;
+  const inner = b[block.type] as { icon?: { type: string; emoji?: string } } | undefined;
+  const emoji = inner?.icon?.type === 'emoji' ? inner.icon.emoji : '💡';
   return (
-    <div className={`flex gap-3 rounded-lg p-4 my-2 ${bgCls}`}>
-      {iconEmoji && <span className="text-xl shrink-0">{iconEmoji}</span>}
-      <div className="text-gray-700 leading-relaxed min-w-0">
+    <div className="flex gap-3 p-4 bg-amber-50/60 border border-amber-200/50 rounded-lg my-3">
+      <span className="text-xl leading-none">{emoji}</span>
+      <div className="text-gray-700 text-sm leading-relaxed flex-1">
         <RichText items={text} />
       </div>
     </div>
   );
 }
 
+function CodeBlock({ block }: { block: NotionBlock }) {
+  const text = getText(block);
+  return (
+    <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 my-3 overflow-x-auto text-sm leading-relaxed">
+      <code>
+        <RichText items={text} />
+      </code>
+    </pre>
+  );
+}
+
 function TableBlock({ block }: { block: NotionBlock }) {
   if (!block.children) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hasHeader = (block as any).table?.has_column_header ?? false;
+  const b = block as Record<string, unknown>;
+  const inner = b[block.type] as { has_column_header?: boolean } | undefined;
+  const hasHeader = inner?.has_column_header ?? false;
 
   return (
     <div className="overflow-x-auto my-3">
-      <table className="w-full text-sm">
-        <tbody className="divide-y divide-gray-100">
-          {block.children.map((row, rowIdx) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const cells: RichTextItemResponse[][] = (row as any).table_row?.cells ?? [];
-            const isHeader = hasHeader && rowIdx === 0;
+      <table className="w-full text-sm border border-gray-200 rounded-lg">
+        <tbody>
+          {block.children.map((row, ri) => {
+            const rowData = row as Record<string, unknown>;
+            const cells = (
+              rowData[row.type] as { cells?: RichTextItemResponse[][] }
+            )?.cells;
+            if (!cells) return null;
+            const isHeader = hasHeader && ri === 0;
             return (
-              <tr key={row.id} className={isHeader ? 'bg-gray-50' : ''}>
-                {cells.map((cell, cellIdx) => {
-                  const Cell = isHeader ? 'th' : 'td';
+              <tr
+                key={row.id}
+                className={isHeader ? 'bg-gray-50 font-semibold' : 'border-t border-gray-100'}
+              >
+                {cells.map((cell, ci) => {
+                  const Tag = isHeader ? 'th' : 'td';
                   return (
-                    <Cell
-                      key={cellIdx}
-                      className={`px-3 py-2 text-left ${
-                        isHeader
-                          ? 'font-semibold text-gray-700'
-                          : 'text-gray-600'
-                      }`}
+                    <Tag
+                      key={ci}
+                      className="px-3 py-2 text-left text-gray-700"
                     >
                       <RichText items={cell} />
-                    </Cell>
+                    </Tag>
                   );
                 })}
               </tr>
@@ -245,73 +230,52 @@ function TableBlock({ block }: { block: NotionBlock }) {
   );
 }
 
-function CodeBlock({ block }: { block: NotionBlock }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = (block as any).code;
-  const text: RichTextItemResponse[] = data?.rich_text ?? [];
-  const plain = text.map((t) => t.plain_text).join('');
-
-  return (
-    <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 my-3 overflow-x-auto text-sm font-mono leading-relaxed">
-      <code>{plain}</code>
-    </pre>
-  );
-}
-
-function ChildPageBlock({ block }: { block: NotionBlock }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const title: string = (block as any).child_page?.title ?? 'Untitled';
-  return (
-    <Link
-      href={`/tax-guide/${block.id}`}
-      className="block bg-white rounded-lg border border-gray-100 p-3 my-2 hover:border-[#006233]/30 hover:shadow-sm transition-all group"
-    >
-      <span className="text-sm font-medium text-gray-900 group-hover:text-[#006233] transition-colors">
-        📄 {title}
-      </span>
-    </Link>
-  );
-}
-
 function ImageBlock({ block }: { block: NotionBlock }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = (block as any).image;
-  const url =
-    data?.type === 'external'
-      ? data.external?.url
-      : data?.file?.url;
-  const caption: RichTextItemResponse[] = data?.caption ?? [];
-
+  const b = block as Record<string, unknown>;
+  const inner = b[block.type] as {
+    type: string;
+    file?: { url: string };
+    external?: { url: string };
+    caption?: RichTextItemResponse[];
+  } | undefined;
+  if (!inner) return null;
+  const url = inner.type === 'file' ? inner.file?.url : inner.external?.url;
   if (!url) return null;
-
   return (
     <figure className="my-4">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
-        alt={caption.map((c) => c.plain_text).join('') || 'Image'}
-        className="rounded-lg max-w-full"
+        alt=""
         loading="lazy"
+        className="rounded-lg max-w-full"
       />
-      {caption.length > 0 && (
-        <figcaption className="text-xs text-gray-400 mt-2 text-center">
-          <RichText items={caption} />
+      {inner.caption && inner.caption.length > 0 && (
+        <figcaption className="text-xs text-gray-400 mt-1.5 text-center">
+          <RichText items={inner.caption} />
         </figcaption>
       )}
     </figure>
   );
 }
 
-function DividerBlock() {
-  return <hr className="my-6 border-gray-200" />;
+function ChildPageBlock({ block }: { block: NotionBlock }) {
+  const b = block as Record<string, unknown>;
+  const inner = b[block.type] as { title?: string } | undefined;
+  return (
+    <Link
+      href={`/tax-guide/${block.id}`}
+      className="block my-2 p-3 rounded-lg border border-gray-100 hover:border-[#006233]/30 hover:shadow-sm transition-all text-sm font-medium text-gray-700 hover:text-[#006233]"
+    >
+      📄 {inner?.title ?? 'Untitled'}
+    </Link>
+  );
 }
 
-// ── Main renderer ───────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/*  Block list renderer (groups consecutive list items)                */
+/* ------------------------------------------------------------------ */
 
-/**
- * Renders a flat array of Notion blocks into React elements.
- * Consecutive list items are grouped into <ul>/<ol> wrappers.
- */
 export function NotionBlocks({ blocks }: { blocks: NotionBlock[] }) {
   const elements: React.ReactNode[] = [];
   let i = 0;
@@ -319,73 +283,89 @@ export function NotionBlocks({ blocks }: { blocks: NotionBlock[] }) {
   while (i < blocks.length) {
     const block = blocks[i];
 
-    // Group consecutive bulleted list items
+    // Group bulleted list items
     if (block.type === 'bulleted_list_item') {
-      const group: NotionBlock[] = [];
+      const items: NotionBlock[] = [];
       while (i < blocks.length && blocks[i].type === 'bulleted_list_item') {
-        group.push(blocks[i]);
+        items.push(blocks[i]);
         i++;
       }
-      elements.push(<ListGroup key={group[0].id} blocks={group} ordered={false} />);
+      elements.push(
+        <ul key={`bl-${items[0].id}`} className="list-disc pl-6 my-2 space-y-1">
+          {items.map((item) => (
+            <li key={item.id} className="text-gray-700 text-sm leading-relaxed">
+              <RichText items={getText(item)} />
+              {item.children && item.children.length > 0 && (
+                <div className="mt-1">
+                  <NotionBlocks blocks={item.children} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>,
+      );
       continue;
     }
 
-    // Group consecutive numbered list items
+    // Group numbered list items
     if (block.type === 'numbered_list_item') {
-      const group: NotionBlock[] = [];
+      const items: NotionBlock[] = [];
       while (i < blocks.length && blocks[i].type === 'numbered_list_item') {
-        group.push(blocks[i]);
+        items.push(blocks[i]);
         i++;
       }
-      elements.push(<ListGroup key={group[0].id} blocks={group} ordered={true} />);
+      elements.push(
+        <ol key={`nl-${items[0].id}`} className="list-decimal pl-6 my-2 space-y-1">
+          {items.map((item) => (
+            <li key={item.id} className="text-gray-700 text-sm leading-relaxed">
+              <RichText items={getText(item)} />
+              {item.children && item.children.length > 0 && (
+                <div className="mt-1">
+                  <NotionBlocks blocks={item.children} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>,
+      );
       continue;
     }
 
-    // Single block rendering
-    switch (block.type) {
-      case 'paragraph':
-        elements.push(<ParagraphBlock key={block.id} block={block} />);
-        break;
-      case 'heading_1':
-        elements.push(<HeadingBlock key={block.id} block={block} level={1} />);
-        break;
-      case 'heading_2':
-        elements.push(<HeadingBlock key={block.id} block={block} level={2} />);
-        break;
-      case 'heading_3':
-        elements.push(<HeadingBlock key={block.id} block={block} level={3} />);
-        break;
-      case 'toggle':
-        elements.push(<ToggleBlock key={block.id} block={block} />);
-        break;
-      case 'quote':
-        elements.push(<QuoteBlock key={block.id} block={block} />);
-        break;
-      case 'callout':
-        elements.push(<CalloutBlock key={block.id} block={block} />);
-        break;
-      case 'divider':
-        elements.push(<DividerBlock key={block.id} />);
-        break;
-      case 'table':
-        elements.push(<TableBlock key={block.id} block={block} />);
-        break;
-      case 'code':
-        elements.push(<CodeBlock key={block.id} block={block} />);
-        break;
-      case 'child_page':
-        elements.push(<ChildPageBlock key={block.id} block={block} />);
-        break;
-      case 'image':
-        elements.push(<ImageBlock key={block.id} block={block} />);
-        break;
-      default:
-        // Unsupported block — render as spacer if empty, skip otherwise
-        break;
-    }
-
+    // Single blocks
+    elements.push(<NotionBlockItem key={block.id} block={block} />);
     i++;
   }
 
   return <>{elements}</>;
+}
+
+function NotionBlockItem({ block }: { block: NotionBlock }) {
+  switch (block.type) {
+    case 'paragraph':
+      return <ParagraphBlock block={block} />;
+    case 'heading_1':
+      return <HeadingBlock block={block} level={1} />;
+    case 'heading_2':
+      return <HeadingBlock block={block} level={2} />;
+    case 'heading_3':
+      return <HeadingBlock block={block} level={3} />;
+    case 'toggle':
+      return <ToggleBlock block={block} />;
+    case 'quote':
+      return <QuoteBlock block={block} />;
+    case 'callout':
+      return <CalloutBlock block={block} />;
+    case 'code':
+      return <CodeBlock block={block} />;
+    case 'table':
+      return <TableBlock block={block} />;
+    case 'image':
+      return <ImageBlock block={block} />;
+    case 'child_page':
+      return <ChildPageBlock block={block} />;
+    case 'divider':
+      return <hr className="my-4 border-gray-200" />;
+    default:
+      return null;
+  }
 }
