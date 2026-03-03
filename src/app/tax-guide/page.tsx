@@ -1,50 +1,80 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { getDatabasePages } from '@/lib/notion';
 
 export const metadata: Metadata = {
-  title: 'Tanzania Master Tax Guide',
+  title: 'Tanzania Master Tax Guide — Tax Tools',
   description:
-    'Comprehensive Tanzania tax reference guide — income tax, VAT, withholding, stamp duty, and more.',
+    'Comprehensive Tanzania tax reference — income tax, VAT, withholding, stamp duty, customs, and more.',
 };
 
-// After publishing your Notion page to the web, paste the public URL here.
-// Instructions: In Notion → open the Tanzania Master Tax Guide → Share → Publish to web → copy URL.
-const NOTION_GUIDE_URL =
-  'https://maize-comet-b12.notion.site/230a91266d3f806fadd1caca5608cff0?v=242a91266d3f80c69f57000c17af815e';
+// Revalidate every 5 minutes so Notion edits appear without redeployment
+export const revalidate = 300;
 
-export default function TaxGuidePage() {
+export default async function TaxGuidePage() {
+  let pages;
+  let error = false;
+
+  try {
+    pages = await getDatabasePages();
+  } catch {
+    error = true;
+  }
+
   return (
-    <div
-      className="flex flex-col"
-      style={{ height: 'calc(100dvh - 62px)' }}
-    >
-      {/* Thin info bar */}
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="min-w-0">
-          <h1 className="text-sm font-semibold text-gray-900 truncate">
-            Tanzania Master Tax Guide
-          </h1>
-          <p className="text-xs text-gray-400 mt-0.5">
-            View only · Updated from Notion
-          </p>
-        </div>
-        <a
-          href={NOTION_GUIDE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs font-medium text-[#F28500] hover:text-[#d97500] transition-colors shrink-0 whitespace-nowrap"
-        >
-          Open ↗
-        </a>
+    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          Tanzania Master Tax Guide
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Comprehensive reference for Tanzania tax law. View only — updated
+          automatically from Notion.
+        </p>
       </div>
 
-      {/* Notion embed */}
-      <iframe
-        src={NOTION_GUIDE_URL}
-        className="w-full flex-1 border-0"
-        title="Tanzania Master Tax Guide"
-        loading="lazy"
-        allowFullScreen
-      />
-    </div>
+      {error && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-4">
+          <strong>Unable to load guide.</strong> Please check that the{' '}
+          <code className="font-mono text-xs bg-amber-100 px-1 rounded">
+            NOTION_API_KEY
+          </code>{' '}
+          and{' '}
+          <code className="font-mono text-xs bg-amber-100 px-1 rounded">
+            NOTION_DATABASE_ID
+          </code>{' '}
+          environment variables are set correctly.
+        </div>
+      )}
+
+      {pages && pages.length > 0 && (
+        <div className="space-y-2">
+          {pages.map((page) => (
+            <Link
+              key={page.id}
+              href={`/tax-guide/${page.id}`}
+              className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:border-[#006233]/30 transition-all group"
+            >
+              <span className="text-xl shrink-0">
+                {page.icon ?? '📄'}
+              </span>
+              <span className="flex-1 min-w-0 text-sm font-medium text-gray-900 group-hover:text-[#006233] transition-colors truncate">
+                {page.title}
+              </span>
+              <span className="text-gray-300 group-hover:text-[#006233] transition-colors text-lg shrink-0">
+                ›
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {pages && pages.length === 0 && (
+        <p className="text-center text-gray-400 text-sm py-8">
+          No sections found. Make sure the Notion database has been shared with
+          the integration.
+        </p>
+      )}
+    </main>
   );
 }
