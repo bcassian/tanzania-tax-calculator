@@ -1,39 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 import Sidebar from './Sidebar';
 
-const SIDEBAR_DISMISSED_KEY = 'sidebar-dismissed';
-
 export default function Header() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
-
-  // Auto-open sidebar on tool pages if user hasn't dismissed it
-  useEffect(() => {
-    const isToolPage = pathname !== '/' && !pathname.startsWith('/_');
-    const dismissed = localStorage.getItem(SIDEBAR_DISMISSED_KEY);
-    if (isToolPage && !dismissed) {
-      setSidebarOpen(true);
-    }
-  }, [pathname]);
-
-  const handleSidebarClose = useCallback(() => {
-    setSidebarOpen(false);
-    localStorage.setItem(SIDEBAR_DISMISSED_KEY, '1');
-  }, []);
 
   return (
     <>
-      <header className="bg-[#F28500] text-white border-b-4 border-[#FCD116]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <header className="border-b-4 border-[#FCD116] bg-[#F28500] text-white">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-1.5 -ml-1.5 rounded-lg hover:bg-white/15 transition-colors print:hidden"
+              className="-ml-1 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl transition-colors hover:bg-white/15 print:hidden"
               aria-label="Open menu"
             >
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -41,15 +23,15 @@ export default function Header() {
               </svg>
             </button>
             <Link href="/" className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-              <span className="text-lg sm:text-xl font-bold leading-tight">Tanzania Tax Tools</span>
-              <span className="text-xs sm:text-sm opacity-75 hidden sm:inline">by bcassian</span>
+              <span className="text-lg font-bold leading-tight sm:text-xl">Tanzania Tax Tools</span>
+              <span className="hidden text-xs opacity-75 sm:inline sm:text-sm">by bcassian</span>
             </Link>
           </div>
 
           <div className="flex items-center gap-3">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="text-sm font-medium bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-lg">
+                <button className="min-h-[44px] rounded-xl bg-white/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-white/20">
                   Sign in
                 </button>
               </SignInButton>
@@ -67,7 +49,7 @@ export default function Header() {
         </div>
       </header>
 
-      <Sidebar isOpen={sidebarOpen} onClose={handleSidebarClose} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
     </>
   );
 }
